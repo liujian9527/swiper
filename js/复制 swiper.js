@@ -1,0 +1,194 @@
+
+/*init 说明:初始化插件,初始化dom结构、布局、分页及绑定事件*/
+/*initEvent 说明：初始化插件事件*/
+/*pagesCount 说明：获取滑动页面数量*/
+/*switchLength 说明：获取滑动宽度（横屏滑动）或高度（竖屏滑动）,改变窗口的大小*/
+/*next */
+/*prev */
+/*_initLayout 说明：主要针对横屏情况进行页面布局*/
+/*_initPaging 说明：实现分页的dom结果及css样式*/
+
+//var _prefix = (function(temp){
+//		var aPrefix = ["webkit", "Moz", "o", "ms"],
+//			props = "";
+//		for(var i in aPrefix){
+//			props = aPrefix[i] + "Transition";
+//			if(temp.style[ props ] !== undefined){
+//				return "-"+aPrefix[i].toLowerCase()+"-";
+//			}
+//		}
+//		return false;
+//	})(document.createElement(PageSwitch));
+/*
+ 1.获取元素
+ 2.生成分页
+ 	1.index值获取
+ 	2.是否支持分页
+ 	3.生成分页dom
+ 	4.当前索引加active
+ 	5.根据横竖屏 给page加类名
+ 3.事件
+ 	分页点击事件
+ 	鼠标滚动事件
+ * */
+function PageSwitch(element,opts){
+	this.$el=element;
+	this.opts=$.extend(true,PageSwitch.default,opts||{});
+	this.init();
+};
+PageSwitch.prototype={
+	init:function(){
+		var _this=this;
+		this.selectors=this.opts.selectors;
+		this.sections=this.$el.find(this.selectors.sections);
+		this.section=this.sections.find(this.selectors.section);
+		this.pagesCount=this.pagesCount();		//个数
+		this.canScroll=true;
+		/*说明：实现分页的dom结果及css样式*/
+		this.index=(this.opts.index >=0 && this.opts.index < this.pagesCount) ? this.opts.index : 0;
+		this.pagination=this.opts.pagination;
+		if(this.pagination){
+			this._initPaging();
+		};
+		/*说明：主要针对横屏情况进行页面布局*/
+		this.direction=this.opts.direction == "vertical" ? true : false;
+		if(!this.direction){
+			this._initLayout()
+		}
+		/*说明：初始化插件事件*/
+		this.initEvent();	
+	},
+	
+	initEvent:function(){
+		var _this=this
+		this.$el.on('click',this.selectors.page+' li',function(){
+			_this.index=$(this).index();
+			_this._scrollPage();
+		})
+		this.$el.on('mousewheel DOMMouseScroll',function(e){
+			var delta=e.originalEvent.wheelDelta || -e.originalEvent.detail;
+			if(_this.canScroll){
+				if(delta>0 &&(_this.index&&!_this.opts.loop||_this.opts.loop)){
+					_this.prev();
+				}else if(delta<0 &&(_this.index<(_this.pagesCount-1)&&!_this.opts.loop||_this.opts.loop)){
+					_this.next();
+				}	
+			}
+		})
+		if(this.opts.keyboard){
+			$(window).on('keydown',function(e){
+				var keyCode=e.keyCode;
+				console.log(keyCode)
+				if(keyCode==37||keyCode==38)
+				{
+					_this.prev();
+				}else if(keyCode==39||keyCode==40){
+					_this.next();
+				}
+			})
+		}
+		$(window).resize(function(){
+			var currentLength=_this.switchLength(),
+				offset=_this.opts.direction ? _this.section.eq(_this.index).offset().top:_this.section.eq(_this.index).offset().left;
+			    console.log(currentLength)
+			    console.log(offset)
+			    if(Math.abs(offset)>currentLength/2 && _this.index<(_this.pagesCount -1)){
+			    	_this.index++;	
+			    };
+			    if(_this.index){
+			    	_this._scrollPage();
+			    };
+		})
+	},
+	pagesCount:function(){
+		return this.section.length;
+	},
+	switchLength:function(){
+		return this.direction?this.$el.height():this.$el.width();
+	},
+	prev:function(){
+		if(this.index>0){
+			this.index--;
+		}else if(this.opts.loop){
+			this.index=this.pagesCount-1;
+		}
+		this._scrollPage();
+	},
+	next:function(){
+		if(this.index<this.pagesCount-1){
+			this.index++;
+		}else if(this.opts.loop){
+			this.index=0;
+		}
+		this._scrollPage();	
+	},
+	_initLayout:function(){
+		var width=(this.pagesCount*100)+'%',
+			cellWidth=(100/ this.pagesCount)+'%';
+		this.sections.width(width)
+		this.section.width(cellWidth).css('float','left')
+	},
+	_initPaging:function(){
+		
+		var pagesClass=this.selectors.page.substring(1);
+		
+		this.activeClass=this.selectors.active.substring(1);
+		this.direction=this.opts.direction;
+		
+		var pageHtml='<ul class='+pagesClass+'>';	
+			for(var i=0 ;i<this.pagesCount; i++){
+				pageHtml+='<li></li>';
+			};
+			pageHtml+='</ul>';
+		this.$el.append(pageHtml);
+		
+		var pages=this.$el.find(this.selectors.page);
+		this.pageItem=pages.find('li');
+		this.pageItem.eq(this.index).addClass(this.activeClass);
+		if(this.direction){
+			pages.addClass("vertical")
+		}else{
+			pages.addClass('horizontal')
+		}
+		
+	},
+	_scrollPage:function(){
+		var _this=this;
+		var dest=this.section.eq(this.index).position();
+		this.section.eq(this.index).addClass('active').siblings().removeClass('active')
+		if(!dest) return;
+		//点
+		var animateCss=this.direction ? {top: -dest.top} : {left: -dest.left};
+		
+		this.sections.stop().animate( animateCss, this.opts.duration, function(){
+			if(_this.opts.callback&&$.type(_this.opts.callback)=='function'){
+				_this.opts.callback();
+			}
+		})
+	
+		
+		if(this.opts.pagination){
+			this.pageItem.eq(this.index).addClass(this.activeClass).siblings('li').removeClass(this.activeClass);
+		};
+		
+		
+		
+	}
+};
+
+PageSwitch.default={
+	selectors:{
+		sections:'.sections',
+		section:'.section',
+		page:'.pages',
+		active:".active"
+	},
+	index:0,
+	easing:'ease',
+	duration:500,	
+	loop:false,
+	pagination:true,
+	keyboard:true,
+	direction:'vertical',/*hreizontal*/
+	callback:''
+};

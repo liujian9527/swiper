@@ -39,6 +39,7 @@
 		}
 		return false;
 	})(document.createElement(PageSwitch));
+	
 	var PageSwitch=(function(){
 		function PageSwitch(element,opts){
 			this.$el=element;
@@ -63,7 +64,7 @@
 				/*说明：主要针对横屏情况进行页面布局*/
 				this.direction=this.opts.direction == "vertical" ? true : false;
 				if(!this.direction){
-					this._initLayout()
+					this._initLayout();
 				}
 				
 				this.initEvent();	
@@ -115,10 +116,82 @@
 						_this.opts.callback();
 					};
 				});
+				/*移动*/
+				$(document).on('touchmove',function(e){
+					e.preventDefault();
+				})
+				
+				this.iScroll=0;		 //移动后的位置
+				this.iStart=0;		 //触摸初始位置
+				this.iStartScroll=0; //滑动初始位置
+				
+				this.sections.on('touchstart',function(e){
+					_this.fnStart(e);
+				});
+				this.sections.on('touchmove',function(e){
+					_this.fnMove(e);
+				});
+				this.sections.on('touchend',function(e){
+					_this.fnEnd(e)
+				});
+			},
+			fnStart:function(e){
+//				var me=this;
+//				me.iStartScroll=e.originalEvent.changedTouches[0].pageX;
+//				me.iStart=me.iScroll;
+				var me=this;
+				var Page=this.direction?e.originalEvent.changedTouches[0].pageY:e.originalEvent.changedTouches[0].pageX;
+				me.iStartScroll=Page;
+				me.iStart=me.iScroll;
+			},
+			fnMove:function(e){
+//				var me=this;
+//				var iDis=e.originalEvent.changedTouches[0].pageX-me.iStartScroll;
+//				me.iScroll=me.iStart+iDis;
+//				var translate='translateX('+me.iScroll+'px)';
+//				me.sections.css('transform',translate);
+     			var me=this;
+     			var Page=this.direction?e.originalEvent.changedTouches[0].pageY:e.originalEvent.changedTouches[0].pageX;
+				var iDis=Page-me.iStartScroll;
+				me.iScroll=me.iStart+iDis;
+				var translate=this.direction?'translateY('+me.iScroll+'px)':'translateX('+me.iScroll+'px)';
+				me.sections.css('transform',translate);				
+			},
+			fnEnd:function(e){
+//				var me=this;
+//				var iDis=e.originalEvent.changedTouches[0].pageX-me.iStartScroll;
+//				var iNub=Math.round(iDis/$(window).width());
+//			    me.index-=iNub;
+//			    console.log(me.index)
+//				if(me.index<0){
+//					me.index=0;
+//				}else if(me.index>=me.pagesCount){
+//					me.index=me.pagesCount-1;
+//				}
+//				me.iScroll=-me.index*$(window).width();
+//				var translate='translateX('+me.iScroll+'px)';
+//				me.sections.css('transform',translate);
+//				me.pageItem.eq(me.index).addClass('active').siblings().removeClass('active')
+
+				var me=this;
+				var Page=this.direction?e.originalEvent.changedTouches[0].pageY:e.originalEvent.changedTouches[0].pageX;
+				var iDis=Page-me.iStartScroll;
+				var iNub=this.direction?Math.round(iDis/$(window).height()) :Math.round(iDis/$(window).width());
+			    me.index-=iNub;
+			    console.log(me.index)
+				if(me.index<0){
+					me.index=0;
+				}else if(me.index>=me.pagesCount){
+					me.index=me.pagesCount-1;
+				}
+				me.iScroll=this.direction?-me.index*$(window).height() : -me.index*$(window).width();
+				var translate=this.direction?'translateY('+me.iScroll+'px)':'translateX('+me.iScroll+'px)';
+				me.sections.css('transform',translate);
+				me.pageItem.eq(me.index).addClass('active').siblings().removeClass('active')
+				
 			},
 			/*说明：获取滑动页面数量*/
 			pagesCount:function(){
-				console.log(this.section.length)
 				return this.section.length;
 			},
 			/*说明：获取滑动宽度（横屏滑动）或高度（竖屏滑动）,改变窗口的大小*/
@@ -213,7 +286,8 @@
 				_this.data('PageSwitch',instance);
 			};
 			if($.type(opts)=='string'){
-				return instance[opts];
+				console.log(instance[opts])
+				return instance[opts]();
 			};
 		})
 		
